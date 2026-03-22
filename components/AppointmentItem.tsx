@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useAppTheme } from '../context/ThemeContext';
+import type { AppTheme } from '../theme/createTheme';
 import type { Appointment, AppointmentStatus } from '../types';
-import { theme } from '../theme/theme';
 
 type Props = {
   appointment: Appointment;
@@ -15,14 +17,64 @@ const statusCopy: Record<AppointmentStatus, string> = {
   pending: 'pending',
 };
 
-const statusStyle: Record<AppointmentStatus, { bg: string; fg: string }> = {
-  scheduled: { bg: theme.colors.accentSoft, fg: theme.colors.textPrimary },
-  completed: { bg: theme.colors.successSoft, fg: theme.colors.success },
-  cancelled: { bg: theme.colors.dangerSoft, fg: theme.colors.danger },
-  pending: { bg: theme.colors.warningSoft, fg: theme.colors.warning },
-};
+function statusColors(theme: AppTheme): Record<AppointmentStatus, { bg: string; fg: string }> {
+  return {
+    scheduled: { bg: theme.colors.accentSoft, fg: theme.colors.textPrimary },
+    completed: { bg: theme.colors.successSoft, fg: theme.colors.success },
+    cancelled: { bg: theme.colors.dangerSoft, fg: theme.colors.danger },
+    pending: { bg: theme.colors.warningSoft, fg: theme.colors.warning },
+  };
+}
 
 export function AppointmentItem({ appointment, onPress, compact }: Props) {
+  const { theme } = useAppTheme();
+  const statusStyle = useMemo(() => statusColors(theme), [theme]);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        wrap: {
+          borderRadius: theme.radii.md,
+          paddingVertical: theme.space.sm,
+          paddingHorizontal: theme.space.xs,
+        },
+        pressed: { opacity: 0.85 },
+        row: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: theme.space.md,
+        },
+        rowCompact: { gap: theme.space.sm },
+        time: {
+          ...theme.type.monoTime,
+          color: theme.colors.textSecondary,
+          width: 48,
+        },
+        mid: { flex: 1, minWidth: 0 },
+        name: {
+          ...theme.type.body,
+          color: theme.colors.textPrimary,
+          fontWeight: '500',
+        },
+        proc: {
+          ...theme.type.caption,
+          color: theme.colors.textMuted,
+          marginTop: 2,
+        },
+        pill: {
+          paddingHorizontal: theme.space.sm,
+          paddingVertical: 4,
+          borderRadius: theme.radii.sm,
+        },
+        pillText: {
+          fontSize: 11,
+          fontWeight: '600',
+          textTransform: 'lowercase',
+        },
+      }),
+    [theme]
+  );
+
   const s = statusStyle[appointment.status];
   const inner = (
     <View style={[styles.row, compact && styles.rowCompact]}>
@@ -45,10 +97,7 @@ export function AppointmentItem({ appointment, onPress, compact }: Props) {
 
   if (onPress) {
     return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
-      >
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}>
         {inner}
       </Pressable>
     );
@@ -56,44 +105,3 @@ export function AppointmentItem({ appointment, onPress, compact }: Props) {
 
   return <View style={styles.wrap}>{inner}</View>;
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    borderRadius: theme.radii.md,
-    paddingVertical: theme.space.sm,
-    paddingHorizontal: theme.space.xs,
-  },
-  pressed: { opacity: 0.85 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.space.md,
-  },
-  rowCompact: { gap: theme.space.sm },
-  time: {
-    ...theme.type.monoTime,
-    color: theme.colors.textSecondary,
-    width: 48,
-  },
-  mid: { flex: 1, minWidth: 0 },
-  name: {
-    ...theme.type.body,
-    color: theme.colors.textPrimary,
-    fontWeight: '500',
-  },
-  proc: {
-    ...theme.type.caption,
-    color: theme.colors.textMuted,
-    marginTop: 2,
-  },
-  pill: {
-    paddingHorizontal: theme.space.sm,
-    paddingVertical: 4,
-    borderRadius: theme.radii.sm,
-  },
-  pillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'lowercase',
-  },
-});

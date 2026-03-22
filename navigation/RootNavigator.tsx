@@ -2,35 +2,45 @@ import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BlurView } from 'expo-blur';
-import { Platform, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppTheme } from '../context/ThemeContext';
+import ActivityScreen from '../screens/ActivityScreen';
 import HomeScreen from '../screens/HomeScreen';
 import PatientDetailScreen from '../screens/PatientDetailScreen';
 import PatientsScreen from '../screens/PatientsScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
-import ActivityScreen from '../screens/ActivityScreen';
-import { theme } from '../theme/theme';
-import type { PatientsStackParamList, RootTabParamList } from './types';
+import SettingsScreen from '../screens/SettingsScreen';
+import * as navigationStyle from './RootNavigator.style';
+import type { PatientsStackParamList, RootStackParamList, RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const PatientsStackNav = createNativeStackNavigator<PatientsStackParamList>();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+
+function GlassTabBarBackground() {
+  const { theme, isDark } = useAppTheme();
+  const blur = navigationStyle.tabBarBlurProps(isDark);
+  return (
+    <View style={[StyleSheet.absoluteFill, navigationStyle.glassTabBarOuterStyle(theme)]}>
+      <BlurView intensity={blur.intensity} tint={blur.tint} style={StyleSheet.absoluteFill} />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, navigationStyle.glassTabBarFillStyle(theme)]} />
+      <LinearGradient
+        pointerEvents="none"
+        colors={[theme.colors.glassHighlightFrom, theme.colors.glassHighlightTo]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={navigationStyle.tabBar.shine}
+      />
+    </View>
+  );
+}
 
 function PatientsStack() {
+  const { theme } = useAppTheme();
   return (
-    <PatientsStackNav.Navigator
-      screenOptions={{
-        headerShown: true,
-        headerTitleStyle: {
-          textTransform: 'lowercase',
-          fontWeight: '500',
-          fontSize: 17,
-          color: theme.colors.textPrimary,
-        },
-        headerShadowVisible: false,
-        headerTintColor: theme.colors.textPrimary,
-        headerStyle: { backgroundColor: theme.colors.bg },
-        contentStyle: { backgroundColor: theme.colors.bg },
-      }}
-    >
+    <PatientsStackNav.Navigator screenOptions={navigationStyle.patientsStackScreenOptions(theme)}>
       <PatientsStackNav.Screen
         name="PatientList"
         component={PatientsScreen}
@@ -49,53 +59,41 @@ const tabIcon: Record<keyof RootTabParamList, keyof typeof Ionicons.glyphMap> = 
   Home: 'home-outline',
   Schedule: 'calendar-outline',
   Patients: 'people-outline',
-  Activity: 'pulse-outline',
+  Settings: 'settings-outline',
 };
 
-export default function RootNavigator() {
+function MainTabs() {
+  const { theme, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: theme.colors.textPrimary,
-        tabBarInactiveTintColor: theme.colors.textMuted,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
-          textTransform: 'lowercase',
-        },
-        tabBarStyle: {
-          backgroundColor:
-            Platform.OS === 'ios' ? 'transparent' : 'rgba(255,255,255,0.96)',
-          borderTopWidth: 0,
-          elevation: 8,
-          shadowColor: theme.colors.textPrimary,
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: Platform.OS === 'ios' ? 0.04 : 0.06,
-          shadowRadius: 16,
-          height: 86,
-          paddingBottom: 26,
-          paddingTop: 10,
-        },
-        tabBarBackground:
-          Platform.OS === 'ios'
-            ? () => (
-                <BlurView
-                  intensity={55}
-                  tint="light"
-                  style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}
-                />
-              )
-            : undefined,
-        tabBarIcon: ({ color, size }) => (
-          <Ionicons name={tabIcon[route.name]} size={size} color={color} />
+        tabBarInactiveTintColor: isDark ? navigationStyle.DARK_TAB_INACTIVE : navigationStyle.LIGHT_TAB_INACTIVE,
+        tabBarLabelStyle: navigationStyle.tabBarLabelStyle,
+        tabBarItemStyle: navigationStyle.tabBarItemStyle,
+        tabBarStyle: navigationStyle.floatingTabBarStyle(insets, isDark),
+        tabBarBackground: () => <GlassTabBarBackground />,
+        tabBarIcon: ({ color }) => (
+          <Ionicons name={tabIcon[route.name]} size={navigationStyle.TAB_ICON_SIZE} color={color} />
         ),
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'home' }} />
       <Tab.Screen name="Schedule" component={ScheduleScreen} options={{ title: 'schedule' }} />
       <Tab.Screen name="Patients" component={PatientsStack} options={{ title: 'patients' }} />
-      <Tab.Screen name="Activity" component={ActivityScreen} options={{ title: 'activity' }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'settings' }} />
     </Tab.Navigator>
+  );
+}
+
+export default function RootNavigator() {
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Screen name="MainTabs" component={MainTabs} />
+      <RootStack.Screen name="Activity" component={ActivityScreen} />
+    </RootStack.Navigator>
   );
 }

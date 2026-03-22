@@ -1,25 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useMemo, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppointmentItem } from '../components/AppointmentItem';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { GlassSheet } from '../components/GlassSheet';
 import { SectionHeader } from '../components/SectionHeader';
+import { useAppTheme } from '../context/ThemeContext';
 import { resolveAppointmentDates } from '../data';
 import type { Appointment } from '../types';
-import { theme } from '../theme/theme';
 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+  const { theme, isDark } = useAppTheme();
+  const scrollBottom = insets.bottom + 24 + tabBarHeight + 14;
   const [selected, setSelected] = useState<Appointment | null>(null);
 
   const list = resolveAppointmentDates().sort((a, b) => {
@@ -40,10 +37,77 @@ export default function ScheduleScreen() {
     ]);
   };
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        screen: { flex: 1, backgroundColor: theme.colors.bg },
+        header: { paddingHorizontal: theme.space.lg, marginBottom: theme.space.md },
+        title: {
+          ...theme.type.title,
+          color: theme.colors.textPrimary,
+          textTransform: 'lowercase',
+        },
+        sub: {
+          ...theme.type.subtitle,
+          marginTop: theme.space.xs,
+        },
+        listCard: {
+          marginHorizontal: theme.space.lg,
+          ...(isDark ? {} : { backgroundColor: theme.colors.bgMuted, ...theme.shadow.soft }),
+        },
+        rowWrap: {
+          paddingVertical: theme.space.md,
+          paddingHorizontal: theme.space.sm,
+        },
+        modalBackdrop: {
+          flex: 1,
+          backgroundColor: theme.colors.modalOverlay,
+          justifyContent: 'flex-end',
+        },
+        sheetHandle: {
+          alignSelf: 'center',
+          width: 40,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: theme.colors.accentSoftStrong,
+          marginBottom: theme.space.md,
+        },
+        sheetTitle: {
+          ...theme.type.caption,
+          color: theme.colors.textMuted,
+          textTransform: 'lowercase',
+        },
+        sheetName: {
+          fontSize: 22,
+          fontWeight: '500',
+          color: theme.colors.textPrimary,
+          marginTop: theme.space.xs,
+        },
+        sheetMeta: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          marginTop: theme.space.md,
+        },
+        sheetMetaText: {
+          ...theme.type.body,
+          color: theme.colors.textSecondary,
+          fontVariant: ['tabular-nums'],
+        },
+        proc: {
+          ...theme.type.body,
+          color: theme.colors.textMuted,
+          marginTop: theme.space.sm,
+        },
+        sheetActions: { marginTop: theme.space.lg, gap: theme.space.sm },
+      }),
+    [theme, isDark]
+  );
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ paddingBottom: scrollBottom }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -54,7 +118,7 @@ export default function ScheduleScreen() {
         <SectionHeader title="all slots" />
         <Card style={styles.listCard} elevated={false}>
           {list.map((a) => (
-            <View key={a.id} style={styles.rowSep}>
+            <View key={a.id} style={styles.rowWrap}>
               <AppointmentItem appointment={a} onPress={() => setSelected(a)} />
             </View>
           ))}
@@ -62,8 +126,9 @@ export default function ScheduleScreen() {
       </ScrollView>
 
       <Modal visible={!!selected} animationType="slide" transparent onRequestClose={close}>
-        <Pressable style={styles.modalBackdrop} onPress={close}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]} onPress={() => {}}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityRole="button" />
+          <GlassSheet contentStyle={{ paddingBottom: insets.bottom + 20 }}>
             {selected ? (
               <>
                 <View style={styles.sheetHandle} />
@@ -75,90 +140,16 @@ export default function ScheduleScreen() {
                     {selected.date} · {selected.time}
                   </Text>
                 </View>
-                {selected.procedure ? (
-                  <Text style={styles.proc}>{selected.procedure}</Text>
-                ) : null}
+                {selected.procedure ? <Text style={styles.proc}>{selected.procedure}</Text> : null}
                 <View style={styles.sheetActions}>
                   <Button label="reschedule" onPress={onReschedule} />
                   <Button label="cancel" variant="ghost" onPress={onCancel} />
                 </View>
               </>
             ) : null}
-          </Pressable>
-        </Pressable>
+          </GlassSheet>
+        </View>
       </Modal>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.colors.bg },
-  header: { paddingHorizontal: theme.space.lg, marginBottom: theme.space.md },
-  title: {
-    ...theme.type.title,
-    color: theme.colors.textPrimary,
-    textTransform: 'lowercase',
-  },
-  sub: {
-    ...theme.type.subtitle,
-    marginTop: theme.space.xs,
-  },
-  listCard: {
-    marginHorizontal: theme.space.lg,
-    backgroundColor: theme.colors.bgMuted,
-    ...theme.shadow.soft,
-  },
-  rowSep: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(12,12,12,0.06)',
-    paddingHorizontal: theme.space.sm,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(12,12,12,0.35)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: theme.colors.bgElevated,
-    borderTopLeftRadius: theme.radii.xl,
-    borderTopRightRadius: theme.radii.xl,
-    padding: theme.space.lg,
-    ...theme.shadow.card,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.accentSoftStrong,
-    marginBottom: theme.space.md,
-  },
-  sheetTitle: {
-    ...theme.type.caption,
-    color: theme.colors.textMuted,
-    textTransform: 'lowercase',
-  },
-  sheetName: {
-    fontSize: 22,
-    fontWeight: '500',
-    color: theme.colors.textPrimary,
-    marginTop: theme.space.xs,
-  },
-  sheetMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: theme.space.md,
-  },
-  sheetMetaText: {
-    ...theme.type.body,
-    color: theme.colors.textSecondary,
-    fontVariant: ['tabular-nums'],
-  },
-  proc: {
-    ...theme.type.body,
-    color: theme.colors.textMuted,
-    marginTop: theme.space.sm,
-  },
-  sheetActions: { marginTop: theme.space.lg, gap: theme.space.sm },
-});
