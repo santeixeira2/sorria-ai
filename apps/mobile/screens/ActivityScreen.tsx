@@ -1,18 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useLayoutEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { SectionHeader } from '../components/SectionHeader';
 import { useAppTheme } from '../context/ThemeContext';
-import { activityFeed } from '../data';
+import { useActivity, useAutoRefresh } from '../data';
 
 export default function ActivityScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { theme, isDark } = useAppTheme();
   const scrollBottom = insets.bottom + 28;
+
+  const { data: activityFeed, loading, refetch } = useActivity();
+  useAutoRefresh(refetch, 15_000); // Refresh every 15s for activity
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -61,6 +64,7 @@ export default function ActivityScreen() {
         },
         iconBook: { backgroundColor: theme.colors.accentSoft },
         iconCancel: { backgroundColor: theme.colors.dangerSoft },
+        iconMessage: { backgroundColor: theme.colors.warningSoft },
         textCol: { flex: 1 },
         msg: {
           ...theme.type.body,
@@ -73,43 +77,63 @@ export default function ActivityScreen() {
           marginTop: 6,
           textTransform: 'lowercase',
         },
+        loadingWrap: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: theme.space.xl,
+        },
       }),
     [theme, isDark]
   );
+
+  const iconForType = (type: string) => {
+    switch (type) {
+      case 'booking': return { name: 'add-circle-outline' as const, style: styles.iconBook };
+      case 'cancellation': return { name: 'close-circle-outline' as const, style: styles.iconCancel };
+      case 'message': return { name: 'chatbubble-outline' as const, style: styles.iconMessage };
+      default: return { name: 'information-circle-outline' as const, style: styles.iconBook };
+    }
+  };
 
   return (
     <View style={styles.screen}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: scrollBottom, paddingTop: theme.space.sm }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={false} onRefresh={refetch} tintColor={theme.colors.textMuted} />
+        }
       >
         <View style={styles.intro}>
-          <Text style={styles.sub}>recent bookings & cancellations</Text>
+          <Text style={styles.sub}>recent bookings, messages & cancellations</Text>
         </View>
 
-        <SectionHeader title="recent" />
-        <Card style={styles.list} elevated={false}>
-          {activityFeed.map((item) => (
-            <View key={item.id} style={styles.row}>
-              <View
-                style={[
-                  styles.iconWrap,
-                  item.type === 'booking' ? styles.iconBook : styles.iconCancel,
-                ]}
-              >
-                <Ionicons
-                  name={item.type === 'booking' ? 'add-circle-outline' : 'close-circle-outline'}
-                  size={22}
-                  color={theme.colors.textPrimary}
-                />
-              </View>
-              <View style={styles.textCol}>
-                <Text style={styles.msg}>{item.message}</Text>
-                <Text style={styles.time}>{item.timeLabel}</Text>
-              </View>
-            </View>
-          ))}
-        </Card>
+        {loading && activityFeed.length === 0 ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="small" color={theme.colors.textMuted} />
+          </View>
+        ) : (
+          <>
+            <SectionHeader title="recent" />
+            <Card style={styles.list} elevated={false}>
+              {activityFeed.map((item) => {
+                const icon = iconForType(item.type);
+                return (
+                  <View key={item.id} style={styles.row}>
+                    <View style={[styles.iconWrap, icon.style]}>
+                      <Ionicons name={icon.name} size={22} color={theme.colors.textPrimary} />
+                    </View>
+                    <View style={styles.textCol}>
+                      <Text style={styles.msg}>{item.message}</Text>
+                      <Text style={styles.time}>{item.timeLabel}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </Card>
+          </>
+        )}
       </ScrollView>
     </View>
   );

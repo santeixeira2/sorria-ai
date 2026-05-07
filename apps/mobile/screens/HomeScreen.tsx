@@ -6,14 +6,14 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppointmentItem } from '../components/AppointmentItem';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { SectionHeader } from '../components/SectionHeader';
 import { useAppTheme } from '../context/ThemeContext';
-import { resolveAppointmentDates } from '../data';
+import { useAppointments, useAutoRefresh } from '../data';
 import type { RootStackParamList, RootTabParamList } from '../navigation/types';
 import type { Appointment } from '../types';
 
@@ -60,8 +60,10 @@ export default function HomeScreen() {
   const scrollBottom = insets.bottom + 24 + tabBarHeight + 14;
 
   const todayIso = isoToday();
-  const all = resolveAppointmentDates();
-  const todayAppts = all
+  const { data: allAppointments, loading, refetch } = useAppointments();
+  useAutoRefresh(refetch, 30_000);
+
+  const todayAppts = allAppointments
     .filter((a) => a.date === todayIso)
     .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
 
@@ -165,6 +167,12 @@ export default function HomeScreen() {
           textAlign: 'center',
           paddingVertical: theme.space.lg,
         },
+        loadingWrap: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: theme.space.xl,
+        },
       }),
     [theme, isDark]
   );
@@ -177,6 +185,9 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: scrollBottom }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={false} onRefresh={refetch} tintColor={theme.colors.textMuted} />
+        }
       >
         <View style={styles.header}>
           <View style={styles.headerTop}>
@@ -196,59 +207,67 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {next ? (
-          <Card style={styles.nextCard}>
-            <Text style={styles.nextLabel}>Next Up</Text>
-            <Text style={styles.nextName}>{next.patientName}</Text>
-            <View style={styles.nextRow}>
-              <Ionicons name="time-outline" size={18} color={theme.colors.textSecondary} />
-              <Text style={styles.nextTime}>{next.time}</Text>
-              {next.procedure ? <Text style={styles.nextProc}> · {next.procedure}</Text> : null}
+        {loading && allAppointments.length === 0 ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="small" color={theme.colors.textMuted} />
+          </View>
+        ) : (
+          <>
+            {next ? (
+              <Card style={styles.nextCard}>
+                <Text style={styles.nextLabel}>Next Up</Text>
+                <Text style={styles.nextName}>{next.patientName}</Text>
+                <View style={styles.nextRow}>
+                  <Ionicons name="time-outline" size={18} color={theme.colors.textSecondary} />
+                  <Text style={styles.nextTime}>{next.time}</Text>
+                  {next.procedure ? <Text style={styles.nextProc}> · {next.procedure}</Text> : null}
+                </View>
+              </Card>
+            ) : null}
+
+            <View style={styles.statsRow}>
+              <Card style={styles.statCard}>
+                <Text style={styles.statValue}>{todayAppts.length}</Text>
+                <Text style={styles.statLabel}>Today</Text>
+              </Card>
+              <Card style={styles.statCard}>
+                <Text style={styles.statValue}>{completed}</Text>
+                <Text style={styles.statLabel}>Done</Text>
+              </Card>
+              <Card style={styles.statCard}>
+                <Text style={styles.statValue}>{pending}</Text>
+                <Text style={styles.statLabel}>Open</Text>
+              </Card>
             </View>
-          </Card>
-        ) : null}
 
-        <View style={styles.statsRow}>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{todayAppts.length}</Text>
-            <Text style={styles.statLabel}>Today</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{completed}</Text>
-            <Text style={styles.statLabel}>Done</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{pending}</Text>
-            <Text style={styles.statLabel}>Open</Text>
-          </Card>
-        </View>
+            <View style={styles.actions}>
+              <Button
+                label="View Schedule"
+                onPress={() => navigation.navigate('Schedule')}
+                icon={<Ionicons name="calendar-outline" size={18} color={theme.colors.accentOnPrimary} />}
+              />
+              <Button
+                label="Add Appointment"
+                variant="ghost"
+                onPress={() => navigation.navigate('Schedule')}
+                icon={<Ionicons name="add" size={20} color={theme.colors.textPrimary} />}
+              />
+            </View>
 
-        <View style={styles.actions}>
-          <Button
-            label="View Schedule"
-            onPress={() => navigation.navigate('Schedule')}
-            icon={<Ionicons name="calendar-outline" size={18} color={theme.colors.accentOnPrimary} />}
-          />
-          <Button
-            label="Add Appointment"
-            variant="ghost"
-            onPress={() => navigation.navigate('Schedule')}
-            icon={<Ionicons name="add" size={20} color={theme.colors.textPrimary} />}
-          />
-        </View>
-
-        <SectionHeader title="Today" subtitle={`${todayAppts.length} slots`} />
-        <Card style={styles.listCard} elevated={false}>
-          {todayAppts.length === 0 ? (
-            <Text style={styles.empty}>No appointments today.</Text>
-          ) : (
-            todayAppts.map((a) => (
-              <View key={a.id} style={styles.listItemWrap}>
-                <AppointmentItem appointment={a} compact />
-              </View>
-            ))
-          )}
-        </Card>
+            <SectionHeader title="Today" subtitle={`${todayAppts.length} slots`} />
+            <Card style={styles.listCard} elevated={false}>
+              {todayAppts.length === 0 ? (
+                <Text style={styles.empty}>No appointments today.</Text>
+              ) : (
+                todayAppts.map((a) => (
+                  <View key={a.id} style={styles.listItemWrap}>
+                    <AppointmentItem appointment={a} compact />
+                  </View>
+                ))
+              )}
+            </Card>
+          </>
+        )}
       </ScrollView>
     </LinearGradient>
   );

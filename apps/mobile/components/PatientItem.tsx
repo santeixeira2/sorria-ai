@@ -60,7 +60,7 @@ export function PatientItem({ patient, onPress }: Props) {
         <Text style={styles.name} numberOfLines={1}>
           {patient.name}
         </Text>
-        <Text style={styles.meta}>last visit · {patient.lastVisit}</Text>
+        <Text style={styles.meta}>{patient.phone}</Text>
       </View>
     </View>
   );

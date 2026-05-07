@@ -1,8 +1,10 @@
+import { ApolloProvider } from '@apollo/client/react';
 import { NavigationContainer, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useAppTheme } from './context/ThemeContext';
+import { apolloClient } from './data';
 import RootNavigator from './navigation/RootNavigator';
 
 function NavigationRoot() {
@@ -34,10 +36,12 @@ function NavigationRoot() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <NavigationRoot />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ApolloProvider client={apolloClient}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <NavigationRoot />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ApolloProvider>
   );
 }

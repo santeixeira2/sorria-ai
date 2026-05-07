@@ -1,33 +1,36 @@
 export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled' | 'pending';
+export type AppointmentSource = 'whatsapp' | 'manual';
 
 export interface Appointment {
   id: string;
-  patientId: string;
   patientName: string;
   time: string;
   date: string;
   status: AppointmentStatus;
   procedure?: string;
+  aiSummary?: string;
+  source?: AppointmentSource;
+  createdAt?: string;
+  patient?: {
+    id: string;
+    name?: string;
+  };
 }
 
 export interface Patient {
   id: string;
   name: string;
   phone: string;
-  lastVisit: string;
   notes: string;
-}
-
-export interface PatientVisit {
-  id: string;
-  date: string;
-  procedure: string;
-  status: 'completed' | 'scheduled';
+  createdAt?: string;
+  updatedAt?: string;
+  appointments?: Appointment[];
 }
 
 export interface ActivityEntry {
   id: string;
-  type: 'booking' | 'cancellation';
+  type: 'booking' | 'cancellation' | 'message' | 'ai_parse';
   message: string;
   timeLabel: string;
+  createdAt?: string;
 }

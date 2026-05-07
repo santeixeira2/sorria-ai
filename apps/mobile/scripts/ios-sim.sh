@@ -19,9 +19,9 @@ fi
 
 sleep 3
 
-HOST_ARGS=(--localhost)
-if [[ "${EXPO_DEV_HOST:-localhost}" == "lan" ]]; then
-  HOST_ARGS=(--lan)
+HOST_ARGS=(--lan)
+if [[ "${EXPO_DEV_HOST:-lan}" == "localhost" ]]; then
+  HOST_ARGS=(--localhost)
 fi
 
 exec npx expo start "${HOST_ARGS[@]}" --ios --port 8091 "$@"

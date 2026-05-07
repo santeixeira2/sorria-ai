@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppointmentItem } from '../components/AppointmentItem';
 import { Button } from '../components/Button';
@@ -9,7 +9,7 @@ import { Card } from '../components/Card';
 import { GlassSheet } from '../components/GlassSheet';
 import { SectionHeader } from '../components/SectionHeader';
 import { useAppTheme } from '../context/ThemeContext';
-import { resolveAppointmentDates } from '../data';
+import { useAppointments, useAutoRefresh } from '../data';
 import type { Appointment } from '../types';
 
 export default function ScheduleScreen() {
@@ -19,7 +19,10 @@ export default function ScheduleScreen() {
   const scrollBottom = insets.bottom + 24 + tabBarHeight + 14;
   const [selected, setSelected] = useState<Appointment | null>(null);
 
-  const list = resolveAppointmentDates().sort((a, b) => {
+  const { data: list, loading, refetch } = useAppointments();
+  useAutoRefresh(refetch, 30_000);
+
+  const sorted = [...list].sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date);
     return a.time.localeCompare(b.time);
   });
@@ -100,6 +103,12 @@ export default function ScheduleScreen() {
           marginTop: theme.space.sm,
         },
         sheetActions: { marginTop: theme.space.lg, gap: theme.space.sm },
+        loadingWrap: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: theme.space.xl,
+        },
       }),
     [theme, isDark]
   );
@@ -109,20 +118,31 @@ export default function ScheduleScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: scrollBottom }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={false} onRefresh={refetch} tintColor={theme.colors.textMuted} />
+        }
       >
         <View style={styles.header}>
           <Text style={styles.title}>schedule</Text>
           <Text style={styles.sub}>appointments across upcoming days</Text>
         </View>
 
-        <SectionHeader title="all slots" />
-        <Card style={styles.listCard} elevated={false}>
-          {list.map((a) => (
-            <View key={a.id} style={styles.rowWrap}>
-              <AppointmentItem appointment={a} onPress={() => setSelected(a)} />
-            </View>
-          ))}
-        </Card>
+        {loading && sorted.length === 0 ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="small" color={theme.colors.textMuted} />
+          </View>
+        ) : (
+          <>
+            <SectionHeader title="all slots" />
+            <Card style={styles.listCard} elevated={false}>
+              {sorted.map((a) => (
+                <View key={a.id} style={styles.rowWrap}>
+                  <AppointmentItem appointment={a} onPress={() => setSelected(a)} />
+                </View>
+              ))}
+            </Card>
+          </>
+        )}
       </ScrollView>
 
       <Modal visible={!!selected} animationType="slide" transparent onRequestClose={close}>
@@ -141,6 +161,11 @@ export default function ScheduleScreen() {
                   </Text>
                 </View>
                 {selected.procedure ? <Text style={styles.proc}>{selected.procedure}</Text> : null}
+                {selected.aiSummary ? (
+                  <Text style={[styles.proc, { marginTop: theme.space.md }]}>
+                    🤖 {selected.aiSummary}
+                  </Text>
+                ) : null}
                 <View style={styles.sheetActions}>
                   <Button label="reschedule" onPress={onReschedule} />
                   <Button label="cancel" variant="ghost" onPress={onCancel} />

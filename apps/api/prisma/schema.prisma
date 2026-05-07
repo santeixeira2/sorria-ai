@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator pothos {
+  provider = "prisma-pothos-types"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppointmentStatus {
+  scheduled
+  completed
+  cancelled
+  pending
+}
+
+enum AppointmentSource {
+  whatsapp
+  manual
+}
+
+enum ActivityType {
+  booking
+  cancellation
+  message
+  ai_parse
+}
+
+enum ConversationState {
+  greeting
+  collecting_info
+  scheduling
+  confirmed
+  idle
+}
+
+model Patient {
+  id            String         @id @default(cuid())
+  name          String
+  phone         String         @unique
+  notes         String         @default("")
+  appointments  Appointment[]
+  conversations Conversation[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@map("patients")
+}
+
+model Appointment {
+  id        String            @id @default(cuid())
+  patient   Patient           @relation(fields: [patientId], references: [id])
+  patientId String            @map("patient_id")
+  date      String
+  time      String
+  procedure String            @default("")
+  status    AppointmentStatus @default(scheduled)
+  aiSummary String            @default("") @map("ai_summary")
+  source    AppointmentSource @default(manual)
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  @@index([date])
+  @@index([patientId])
+  @@map("appointments")
+}
+
+model Conversation {
+  id        String            @id @default(cuid())
+  patient   Patient           @relation(fields: [patientId], references: [id])
+  patientId String            @map("patient_id")
+  phone     String            @unique
+  messages  Json              @default("[]")
+  state     ConversationState @default(greeting)
+  context   Json              @default("{}")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@map("conversations")
+}
+
+model Activity {
+  id        String       @id @default(cuid())
+  type      ActivityType
+  message   String
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@map("activity")
+}

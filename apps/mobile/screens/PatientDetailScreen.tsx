@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Card } from '../components/Card';
 import { SectionHeader } from '../components/SectionHeader';
 import { useAppTheme } from '../context/ThemeContext';
-import { patients, patientVisitsById } from '../data';
+import { usePatientDetail } from '../data';
 import type { PatientsStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<PatientsStackParamList, 'PatientDetail'>;
@@ -19,8 +19,7 @@ export default function PatientDetailScreen({ route }: Props) {
   const scrollBottom = insets.bottom + 24 + tabBarHeight + 14;
   const { patientId } = route.params;
 
-  const patient = patients.find((p) => p.id === patientId);
-  const visits = patientVisitsById[patientId] ?? [];
+  const { data: patient, loading } = usePatientDetail(patientId);
 
   const styles = useMemo(
     () =>
@@ -100,9 +99,25 @@ export default function PatientDetailScreen({ route }: Props) {
         },
         done: { color: theme.colors.success },
         upcoming: { color: theme.colors.warning },
+        loadingWrap: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: theme.space.xl,
+        },
       }),
     [theme, isDark]
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="small" color={theme.colors.textMuted} />
+        </View>
+      </View>
+    );
+  }
 
   if (!patient) {
     return (
@@ -111,6 +126,8 @@ export default function PatientDetailScreen({ route }: Props) {
       </View>
     );
   }
+
+  const visits = patient.appointments ?? [];
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -131,27 +148,31 @@ export default function PatientDetailScreen({ route }: Props) {
 
         <SectionHeader title="notes" />
         <Card style={styles.block}>
-          <Text style={styles.notes}>{patient.notes}</Text>
+          <Text style={styles.notes}>{patient.notes || 'No notes yet.'}</Text>
         </Card>
 
         <SectionHeader title="appointment history" />
         <Card style={styles.block} elevated={false}>
-          {visits.map((v) => (
-            <View key={v.id} style={styles.visitRow}>
-              <View style={styles.visitLeft}>
-                <Text style={styles.visitDate}>{v.date}</Text>
-                <Text style={styles.visitProc}>{v.procedure}</Text>
+          {visits.length === 0 ? (
+            <Text style={styles.notes}>No appointments yet.</Text>
+          ) : (
+            visits.map((v) => (
+              <View key={v.id} style={styles.visitRow}>
+                <View style={styles.visitLeft}>
+                  <Text style={styles.visitDate}>{v.date} · {v.time}</Text>
+                  <Text style={styles.visitProc}>{v.procedure || 'Consulta'}</Text>
+                </View>
+                <Text
+                  style={[
+                    styles.visitStatus,
+                    v.status === 'completed' ? styles.done : styles.upcoming,
+                  ]}
+                >
+                  {v.status}
+                </Text>
               </View>
-              <Text
-                style={[
-                  styles.visitStatus,
-                  v.status === 'completed' ? styles.done : styles.upcoming,
-                ]}
-              >
-                {v.status}
-              </Text>
-            </View>
-          ))}
+            ))
+          )}
         </Card>
       </ScrollView>
     </View>
